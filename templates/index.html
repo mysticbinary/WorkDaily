@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>牛逼团队日报系统</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+    <!-- about footer -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .container {
+            text-align: center;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            margin: auto;
+        }
+        p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+            margin: 5px 0;
+        }
+        footer {
+            margin-top: auto;
+            padding: 10px;
+            background-color: #ddd;
+            color: #333;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container mt-5">
+    <button class="btn btn-primary" data-toggle="modal" data-target="#addReportModal">添加日报</button>
+    <button class="btn btn-secondary" id="showQueryForm">查询日报</button>
+
+    <div id="queryForm" class="mt-3" style="display:none;">
+        <select id="queryName" class="form-control mb-2">
+            <!-- 姓名选项将从listData中动态加载 -->
+        </select>
+        <input type="date" id="queryDate" class="form-control mb-2">
+        <button class="btn btn-info" id="doQueryBtn">查询</button>
+    </div>
+
+    <div id="results" class="mt-3"></div>
+</div>
+
+<!-- Add Report Modal -->
+<div class="modal" id="addReportModal" tabindex="-1" role="dialog" data-backdrop="static" data-keyboard="false"> 
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加日报</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <select id="addName" class="form-control mb-2">
+                    <!-- 姓名选项将从listData中动态加载 -->
+                </select>
+                <input type="date" id="addDate" class="form-control mb-2">
+                <select id="addCategory" class="form-control mb-2">
+                    <option value="">请选择类别</option>
+                    <option value="渗透测试">渗透测试</option>
+                    <option value="渗透复测">渗透复测</option>
+                    <option value="代码审计">代码审计</option>
+                    <option value="漏洞审核">漏洞审核</option>
+                    <option value="安全开发">安全开发</option>
+                    <option value="文档编制">文档编制</option>
+                    <option value="其它">其它</option>
+                </select>
+                <div id="additionalFields"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="submitReport">提交日报</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+<script>
+$(document).ready(function() {
+    // 将list.txt中的内容作为一个JavaScript对象
+    const listData = {
+        "系统名称": ["系统名称1", "系统名称2", "其它名称"],
+        "测试类别": ["版本线", "专项"],
+        "进度": ["100%", "95%", "90%", "85%", "80%", "75%", "70%", "65%", "60%", "55%", "50%", "45%", "40%", "35%", "30%", "25%", "20%", "15%", "10%", "5%"],
+        "姓名": ["请选择姓名", "ZhangShan", "Lisi", "WangWu", "ZhaoLiu"],
+        "开发平台": ["Burp", "IAST"],
+        "审核平台": ["IAST","安全管理平台"]
+    };
+
+    // 动态加载姓名到所有姓名下拉菜单
+    listData["姓名"].forEach(name => {
+        $("#addName, #queryName").append(new Option(name, name));
+    });
+
+    // 动态加载类别到类别下拉菜单，自动加载日期
+    $('#addReportModal').on('shown.bs.modal', function () {
+        $('#addDate').val(new Date().toISOString().slice(0, 10));
+    });
+
+    // 注意：这里假设“类别”下拉菜单的ID是addCategory
+    $('#addDate').val(new Date().toISOString().slice(0, 10));
+
+    $('#addCategory').change(function() {
+        const category = $(this).val();
+        let additionalFieldsHtml = '';
+
+        $('#additionalFields').empty(); // 清空额外字段区域
+
+        // 渗透复测
+         if (category === '请选择类别') {
+        }else if (category === '渗透测试') {
+            additionalFieldsHtml += generateFields(['系统名称', '测试类别','测试进度'], listData) +
+                `<textarea class="form-control mb-2" rows="3" id="vulnerabilityPassed" placeholder="审核通过漏洞"></textarea>` +
+                `<textarea class="form-control mb-2" rows="3" id="vulnerabilityRejected" placeholder="审核驳回漏洞"></textarea>`;
+        }else if (category === '渗透复测') {
+            additionalFieldsHtml += generateFields(['系统名称', '测试类别'], listData) +
+                `<textarea class="form-control mb-2" rows="3" id="vulnerabilityPassed" placeholder="审核通过漏洞"></textarea>` +
+                `<textarea class="form-control mb-2" rows="3" id="vulnerabilityRejected" placeholder="审核驳回漏洞"></textarea>`;
+        }
+        // 代码审计
+        else if (category === '代码审计') {
+            additionalFieldsHtml += generateFields(['系统名称', '测试进度'], listData) +
+                `<textarea class="form-control mb-2" rows="3" id="vulnerabilityFound" placeholder="发现漏洞"></textarea>`;
+        }
+        // 漏洞审核
+        else if (category === '漏洞审核') {
+            additionalFieldsHtml += generateFields(['审核平台'], listData) +
+                `<input type="number" class="form-control mb-2" id="auditAmount" placeholder="审核数量">` +
+                `<textarea class="form-control mb-2" rows="3" id="auditResult" placeholder="审核结果"></textarea>`;
+        }
+        // 安全开发
+        else if (category === '安全开发') {
+            additionalFieldsHtml += generateFields(['开发平台'], listData) +
+                `<textarea class="form-control mb-2" rows="3" id="developmentContent" placeholder="开发内容"></textarea>`;
+        }
+        // 文档编制
+        else if (category === '文档编制') {
+            additionalFieldsHtml += generateFields(['进度'], listData) +
+                `<textarea class="form-control mb-2" rows="3" id="documentationContent" placeholder="编制内容"></textarea>`;
+        }
+        // 其它
+        else if (category === '其它') {
+            additionalFieldsHtml += `<textarea class="form-control mb-2" rows="3" id="otherContent" placeholder="日报内容"></textarea>`;
+        }
+
+        $('#additionalFields').html(additionalFieldsHtml);
+    });
+
+    function generateFields(fields, listData) {
+        let fieldsHtml = '';
+        fields.forEach(field => {
+            if (listData[field]) {
+                fieldsHtml += `<label for="${field.toLowerCase().replace(/\s+/g, '')}">${field}</label>
+                <select class="form-control mb-2" id="${field.toLowerCase().replace(/\s+/g, '')}">
+                    <option value="">请选择${field}</option>`;
+                listData[field].forEach(option => {
+                    fieldsHtml += `<option value="${option}">${option}</option>`;
+                });
+                fieldsHtml += `</select>`;
+            }
+        });
+        return fieldsHtml;
+    }
+});
+// 当文档加载完成后
+$(document).ready(function() {
+    // 当点击提交日报按钮时
+    $("#submitReport").click(function() {
+        // 收集表单数据
+        var data = {
+            name: $("#addName").val(),
+            date: $("#addDate").val(),
+            category: $("#addCategory").val(),
+            additionalFields: {}
+        };
+
+        // 根据类别收集额外的表单字段
+        $("#additionalFields").find("input, select, textarea").each(function() {
+            var key = $(this).attr("placeholder") || $(this).find("option:first").text();
+            var value = $(this).val();
+            data.additionalFields[key] = value;
+        });
+        // 检查是否选择了"请选择姓名"
+        if (data.name === "请选择姓名") {
+            alert("提交失败，请选择自己的名字，再重试。");
+            return; // 退出函数
+        }
+
+        // 发送AJAX请求到后端
+        $.ajax({
+            url: "/submit_report",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(data),
+            success: function(response) {
+                alert("日报提交成功!");
+                // 关闭模态框并重置表单
+                $("#addReportModal").modal('hide');
+                $("#addReportModal").find("input, select, textarea").val('');
+            },
+            error: function(xhr, status, error) {
+                alert("提交失败，请重试。");
+            }
+        });
+    });
+});
+$(document).ready(function() {
+    // 设置今天的日期为默认值
+<!--  如果想默认为 查询全部日期  -->
+<!--    $('#addDate').val(new Date().toISOString().slice(0, 10));-->
+<!--  如果想用默认使用当天日期 -->
+    $('#queryDate').val(new Date().toISOString().slice(0, 10));
+
+    // 其他现有的代码...
+
+    // 切换查询表单的显示与隐藏
+    $("#showQueryForm").click(function() {
+        $("#queryForm").toggle(); // 正确的位置
+    });
+
+    // 查询日报的点击事件处理
+    $("#doQueryBtn").click(function() {
+    var name = $("#queryName").val();
+    var date = $("#queryDate").val();
+    
+    $.ajax({
+        url: "/query_reports",
+        type: "GET",
+        data: {name: name, date: date},
+        success: function(response) {
+    var resultsDiv = $("#results");
+    resultsDiv.empty(); // 清空现有结果
+    
+    response.forEach(function(sheet) {
+        var sheetName = sheet[0];
+        var sheetHtml = sheet[1];
+        var $table = $(sheetHtml);
+        // 此处省略了现有的代码...
+
+        $table.find('thead tr').append('<th>操作</th>'); // 在表头添加“操作”列
+        $table.find('tbody tr').each(function(index) {
+            var $row = $(this);
+            var logDate = $row.find('td:nth-child(3)').text(); // 假设日期在第三列
+            if (logDate === new Date().toISOString().slice(0, 10)) {
+                var $deleteBtn = $('<button>').addClass('btn btn-danger btn-sm').text('删除');
+                $deleteBtn.on('click', function() {
+                    var row_id = $row.index(); // tbody中的行索引
+                    $.ajax({
+                        url: "/delete_report",
+                        type: "POST",
+                        contentType: "application/json",
+                        data: JSON.stringify({ row_id: row_id, sheet_name: sheetName }), // 发送行ID和Sheet名
+                        success: function(response) {
+                            alert("删除成功");
+                            $row.remove(); // 从表格中移除这行
+                        },
+                        error: function(xhr, status, error) {
+                            alert("删除失败，请重试");
+                        }
+                    });
+                });
+                $row.append($('<td>').append($deleteBtn));
+            }
+        });
+        resultsDiv.append("<h3>" + sheetName + "</h3>");
+        resultsDiv.append($table);
+            });
+        },
+        error: function() {
+            alert("查询失败，请重试。");
+        }
+    });
+});
+
+    // 现有的事件处理代码...
+});
+
+
+</script>
+<style>
+    /* 优化表格样式 */
+    #results table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    #results th, #results td {
+        text-align: left;
+        padding: 8px;
+        border-bottom: 1px solid #ddd; /* 添加底部边框 */
+    }
+    #results tr:hover {
+        background-color: #f5f5f5; /* 鼠标悬停效果 */
+    }
+    #results th {
+        background-color: #7ba3cf; /* 表头背景色 */
+        color: white; /* 表头文字颜色 */
+    }
+    #results h3 {
+        margin-top: 20px;
+    }
+    .btn-danger {
+        margin: 5px; /* 调整按钮间距 */
+    }
+</style>
+
+
+<!-- footer information -->
+<footer>
+    <p>版权所有©2024   &nbsp&nbsp&nbsp   北京XXX科技股份有限公司</p>
+    <p>程序维护：XX、XXX</p>
+</footer>
+</body>
+</html>
