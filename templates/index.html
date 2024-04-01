@@ -260,18 +260,24 @@ $(document).ready(function() {
             if (logDate === new Date().toISOString().slice(0, 10)) {
                 var $deleteBtn = $('<button>').addClass('btn btn-danger btn-sm').text('删除');
                 $deleteBtn.on('click', function() {
-                    var row_id = $row.index(); // tbody中的行索引
+                    var uuid = $row.find('td:nth-child(4)').text(); // tbody中的UUID行索引
                     $.ajax({
                         url: "/delete_report",
                         type: "POST",
                         contentType: "application/json",
-                        data: JSON.stringify({ row_id: row_id, sheet_name: sheetName }), // 发送行ID和Sheet名
+                        data: JSON.stringify({
+                            sheet_name: sheetName,
+                            uuid: uuid
+                        }),
                         success: function(response) {
-                            alert("删除成功");
-                            $row.remove(); // 从表格中移除这行
+                            alert(response.message);
+                            if (response.message === '删除成功') {
+                                // 删除成功后刷新页面
+                                location.reload();
+                            }
                         },
                         error: function(xhr, status, error) {
-                            alert("删除失败，请重试");
+                            alert("删除失败 ：" + xhr.responseText);
                         }
                     });
                 });
